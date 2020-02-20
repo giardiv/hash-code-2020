@@ -61,15 +61,20 @@ function readData(filename, args) {
 }
 
 function writeOutput(signupLibraries, filename, totalScore, args) {
-    let output = signupLibraries.length + '\n';
+    let libraryOutput = '';
+    let correctLibraryCount = 0;
 
     signupLibraries.forEach(signupLibrary => {
         if (signupLibrary.books.length == 0) {
             return;
         }
-        output += signupLibrary.id + ' ' + signupLibrary.books.length + '\n';
-        output += signupLibrary.books.join(' ') + '\n';
+        libraryOutput += signupLibrary.id + ' ' + signupLibrary.books.length + '\n';
+        libraryOutput += signupLibrary.books.join(' ') + '\n';
+        correctLibraryCount++;
     });
+
+    let output = correctLibraryCount + '\n' + libraryOutput;
+
     args.shouldLog && console.log(output);
     fs.writeFileSync(`./${ filename.substring(0, filename.length-4) }-books_${ totalScore }.txt`, output);
 }
