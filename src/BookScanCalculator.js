@@ -45,11 +45,24 @@ class BookScanCalculator {
         let visitedBooks = [];
 
         libraries.sort(function(a, b){
-            return a.signupTime - b.signupTime;
+            if(a.signupTime == b.signupTime){
+                return (b.books.length) - (a.books.length)
+            } else {
+                return a.signupTime - b.signupTime;
+            }
         })
-        libraries.forEach(library => {
-            console.log(library.signupTime)
+        let flibraries = libraries.filter(function(library, i){
+            return (library.books.length/library.bookShipCount) > (dayCount - i) 
+            //return true;
+        })
+        flibraries.forEach(library => {
+            //console.log(library.signupTime)
             let curBooks = library.books.filter(book => !visitedBooks.includes(book));
+
+            curBooks.sort(function(a,b){
+                return scores[b] - scores[a];
+            })
+            console.log(scores[curBooks[0]] + " " + scores[curBooks[10]]+ " " + scores[curBooks[50]]+ " " + scores[curBooks[100]])
 
             result.push({
                 id: library.id,
