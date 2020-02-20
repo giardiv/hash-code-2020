@@ -28,12 +28,13 @@ function readData(filename, args) {
             if (currentLibrary == null) {
                 const libraryCounts = item.split(' ');
                 currentLibrary = {
+                    id: libraries.length,
                     bookCount: parseInt(libraryCounts[0]),
                     signupTime: parseInt(libraryCounts[1]),
                     bookShipCount: parseInt(libraryCounts[2]),
                 };
             } else {
-                currentLibrary.bookIds = item.split(' ').map(e => parseInt(e));
+                currentLibrary.books = item.split(' ').map(e => parseInt(e));
                 libraries.push(currentLibrary);
 
                 currentLibrary = null;
@@ -45,7 +46,7 @@ function readData(filename, args) {
         libraries.forEach((library) => {
             console.log(`Library #${ library.id }: ${ library.bookCount } books`
                 + ` with ${ library.signupTime }  signup days, can ship ${ library.bookShipCount } per day. `
-                + ` Books: ${ library.bookIds.join(',') }`);
+                + ` Books: ${ library.books.join(',') }`);
         });
     }
 
@@ -58,11 +59,15 @@ function readData(filename, args) {
     return {bookCount, libraryCount, dayCount, scores, libraries};
 }
 
-function writeOutput(slideshow, filename, totalScore, args) {
-    // let output = slideshow.length + '\n';
-    // output += slideshow.map((pics) => pics.map((pic) => pic.id).join(' ')).join('\n');
-    // args.shouldLog && console.log(output);
-    // fs.writeFileSync(`./${ filename.substring(0, filename.length-4) }-slideshow_${ totalScore }.txt`, output);
+function writeOutput(signupLibraries, filename, totalScore, args) {
+    let output = signupLibraries.length + '\n';
+
+    signupLibraries.forEach(signupLibrary => {
+        output += signupLibrary.id + ' ' + signupLibrary.books.length + '\n';
+        output += signupLibrary.books.join(' ') + '\n';
+    });
+    args.shouldLog && console.log(output);
+    fs.writeFileSync(`./${ filename.substring(0, filename.length-4) }-books_${ totalScore }.txt`, output);
 }
 
 exports.readData = readData;

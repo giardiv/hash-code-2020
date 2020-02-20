@@ -20,16 +20,15 @@ const filename = args.inputfile || 'a_example.txt';
 const timer = require('./src/timer').timer;
 
 const IO = require('./src/IO');
-// const SlideshowGenerator = require('./SlideshowGenerator').SlideshowGenerator;
-// const slideShowGenerator = new SlideshowGenerator(args);
-
+const BookScanCalculator = require('./src/BookScanCalculator').BookScanCalculator;
 const data = IO.readData(filename, args);
 
 console.log(data.libraries[0]);
 
-// const result = bookScanningGenerator.genereteSignups(data);
+const bookScanCalculator = new BookScanCalculator(args);
+const result = bookScanCalculator.generateResults(data);
 
-// const totalScore = bookScanningGenerator.getScore(result);
+const totalScore = ''; // bookScanCalculator.getScore(result);
 // console.log(`\nThe score is ${ totalScore.toLocaleString() } (${ timer.formatElapsed() })`);
-//
-// IO.writeOutput(result, filename, totalScore, args);
+
+IO.writeOutput(result, filename, totalScore, args);
