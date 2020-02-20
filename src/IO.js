@@ -50,7 +50,8 @@ function readData(filename, args) {
         });
     }
 
-    console.log(`Read file ${ filename }, found ${ libraries.length.toLocaleString() } libraries,`
+    console.log(`Read file ${ filename }, found ${ libraries.length.toLocaleString() } libraries`
+        + ` with ${ scores.length.toLocaleString() } books`
         + ` expected ${ libraryCount.toLocaleString() } (${ timer.formatElapsed() })\n`);
     if (libraries.length != libraryCount) {
         console.error(`Mismatch between expected pictures and read pictures!`);
@@ -63,6 +64,9 @@ function writeOutput(signupLibraries, filename, totalScore, args) {
     let output = signupLibraries.length + '\n';
 
     signupLibraries.forEach(signupLibrary => {
+        if (signupLibrary.books.length == 0) {
+            return;
+        }
         output += signupLibrary.id + ' ' + signupLibrary.books.length + '\n';
         output += signupLibrary.books.join(' ') + '\n';
     });

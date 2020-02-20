@@ -16,7 +16,7 @@ class Timer {
         const minutes = elapsed / 60;
         const seconds = elapsed % 60;
 
-        return minutes + 'm ' + seconds + 's';
+        return Math.floor(minutes) + 'm ' + Math.floor(seconds) + 's';
     }
 }
 
