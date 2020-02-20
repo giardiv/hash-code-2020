@@ -58,7 +58,7 @@ class BookScanCalculator {
                 books: curBooks
             });
 
-            visitedBooks += curBooks;
+            //visitedBooks += curBooks;
         });
 
         // expected result format

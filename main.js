@@ -23,12 +23,19 @@ const IO = require('./src/IO');
 const BookScanCalculator = require('./src/BookScanCalculator').BookScanCalculator;
 const data = IO.readData(filename, args);
 
+
 //console.log(data.libraries[1]);
+
+args.shouldLog && console.log(data.libraries);
 
 const bookScanCalculator = new BookScanCalculator(args);
 const result = bookScanCalculator.generateResultsB(data);
+
+console.log(`\n\nGeneration took: ${ timer.formatElapsed() }\n\n`);
 
 const totalScore = ''; // bookScanCalculator.getScore(result);
 // console.log(`\nThe score is ${ totalScore.toLocaleString() } (${ timer.formatElapsed() })`);
 
 IO.writeOutput(result, filename, totalScore, args);
+
+console.log(`Total time elapsed: ${ timer.formatElapsed() }\n\n`);
