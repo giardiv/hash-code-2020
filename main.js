@@ -11,6 +11,18 @@ const args = require('yargs')
         describe: 'Whether to always log additional debug output',
         type: 'boolean',
     })
+    .option('checkInterval', {
+        alias: 'i',
+        describe: '',
+        type: 'integer',
+        default: 100
+    })
+    .option('scoreRange', {
+        alias: 's',
+        describe: '',
+        type: 'integer',
+        default: 15
+    })
     .help()
     .argv;
 
@@ -26,13 +38,11 @@ const data = IO.readData(filename, args);
 args.shouldLog && console.log(data.libraries);
 
 const bookScanCalculator = new BookScanCalculator(args);
-const result = bookScanCalculator.generateResults(data);
+const result = bookScanCalculator.generateResultsLukas(data);
 
-console.log(`\n\nGeneration took: ${ timer.formatElapsed() }\n\n`);
-
-const totalScore = ''; // bookScanCalculator.getScore(result);
-// console.log(`\nThe score is ${ totalScore.toLocaleString() } (${ timer.formatElapsed() })`);
+const totalScore = bookScanCalculator.getScore(result, data.scores, data.dayCount);
+console.log(`\nThe score is ${ totalScore.toLocaleString() }`);
 
 IO.writeOutput(result, filename, totalScore, args);
 
-console.log(`Total time elapsed: ${ timer.formatElapsed() }\n\n`);
+console.log(`\nTotal time elapsed: ${ timer.formatElapsed() }\n`);
