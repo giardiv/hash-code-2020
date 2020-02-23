@@ -1,3 +1,5 @@
+const ss = require('simple-statistics');
+
 const timer = require('./timer').timer;
 const cliProgress = require('cli-progress');
 
@@ -40,14 +42,28 @@ class BookScanCalculator {
     }
 
     generateResultsLukas({bookCount, libraryCount, dayCount, scores, libraries}) {
+        console.log(`Max score: ${scores.reduce((acc, val) => acc + val).toLocaleString()}`);
+        console.log(`Book score stats: \t${this.genDescStats(scores)}`);
+        const libraryBookCounts = libraries.map(l => l.books.length);
+        console.log(`Library book count stats: ${this.genDescStats(libraryBookCounts)}`);
+        const librarySignup = libraries.map(l => l.signupTime);
+        console.log(`Library signup time stats: ${this.genDescStats(librarySignup)}\n`);
+
         const result = [];
 
         let visitedBooks = [];
         let daysPassed = 0;
         let lastCheck = 0;
-        // let visitedLibraries = [];
 
         let librariesLeft = libraries;
+
+        const bookCounts = new Array(bookCount).fill(0);
+        for (let library of libraries) {
+            for (let bookId of library.books) {
+                bookCounts[bookId]++;
+            }
+        }
+        console.log(`Book count stats: ${this.genDescStats(bookCounts)}\n`);
 
         const bar1 = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
         bar1.start(dayCount, 0);
@@ -55,9 +71,10 @@ class BookScanCalculator {
         const checkInterval = this.args.checkInterval;
 
         while (daysPassed < dayCount) {
+            // Remove books from signed library
             if (visitedBooks.length > 0) {
                 for (let library of librariesLeft) {
-                    if (library === null) {
+                    if (library === null || library.score === 0) {
                         continue;
                     }
     
@@ -67,45 +84,50 @@ class BookScanCalculator {
                             library.books.splice(bookIndex, 1);
                         }
                     }
-    
-                    // library.books = library.books.filter(book => !visitedBooks.includes(book));
                 }
 
                 visitedBooks = [];
             }
 
-            let scoredLibraries = this.scoreLibraries(librariesLeft, scores, dayCount - daysPassed);
+            let scoredLibraries = this.scoreLibraries(librariesLeft, scores, dayCount - daysPassed, bookCounts);
 
-            let sortedLibrariesBySignup = JSON.parse(JSON.stringify(scoredLibraries));
-            sortedLibrariesBySignup.sort((a, b) => {
-                let res = a.signupTime - b.signupTime;
-                if (Math.abs(res) < this.args.scoreRange) {
-                    return b.score - a.score
+            scoredLibraries.sort((a, b) => {
+                let res = b.scoreweighted - a.scoreweighted;
+                let avgscore = (a.scoreweighted + b.scoreweighted) / 2;
+                let maxscore = Math.max(a.scoreweighted, b.scoreweighted);
+                if (this.args.scoreRange > 0 && Math.abs(res) < this.args.scoreRange*avgscore) {
+                    // return a.signupTime - b.signupTime;
+                    // return b.scoreuncut - a.scoreuncut;
+                    // return b.books.length - a.books.length;
+                    return b.maxBooks - a.maxBooks;
+                    // return b.avgscore - a.avgscore;
                 }
 
                 return res;
             });
 
-            for (const libData of sortedLibrariesBySignup) {
-                let library = librariesLeft[libData.id];
-                if (library == null) {
-                    daysPassed += dayCount;
-                    break;
+            for (const library of scoredLibraries) {
+                if (library.score === 0 || library.id === undefined) {
+                    continue;
                 }
                 if (daysPassed + library.signupTime > dayCount) {
                     continue;
                 }
 
-                let curBooks = library.books.sort((a, b) => scores[b] - scores[a]);
                 let startDay = daysPassed + library.signupTime;
                 let daysLeft = dayCount - startDay;
                 let numBooks = daysLeft * library.bookShipCount;
+                library.books.sort((a, b) => scores[b] - scores[a]);
+                let curBooks = library.books;
+
                 if (numBooks < curBooks.length) {
-                    curBooks = curBooks.slice(0, numBooks);
+                    curBooks = library.books.slice(0, numBooks);
                 }
                 if (curBooks.length === 0) {
                     continue;
                 }
+                // console.log(`Library ${library.id}, score ${library.scoreweighted}, books ${curBooks.length}, signup ${library.signupTime}, throughput ${library.bookShipCount}, score2 ${library.score}`);
+                // console.log(curBooks.reduce((prev, cur) => prev + scores[cur]), curBooks.length, library.books.length);
 
                 result.push({
                     id: library.id,
@@ -114,30 +136,25 @@ class BookScanCalculator {
                     signupTime: library.signupTime,
                     bookShipCount: library.bookShipCount
                 });
-                // visitedLibraries.push(library.id);
                 visitedBooks = visitedBooks.concat(curBooks);
                 daysPassed += library.signupTime;
 
-                librariesLeft[libData.id] = null;
+                librariesLeft[library.id] = null;
 
                 bar1.update(daysPassed);
 
                 if (daysPassed > lastCheck+checkInterval) {
                     lastCheck = daysPassed;
                     break;
-
-                    // result.forEach(signedLibrary => {
-                    //     const activeDays = daysPassed - signedLibrary.startDay;
-                    //     const numBooks = activeDays * signedLibrary.bookShipCount;
-                    //     visitedBooks.push(signedLibrary.books.slice(0, numBooks));
-                    // });
                 }
 
                 if (daysPassed > dayCount) {
                     break;
                 }
             }
-
+            if (visitedBooks.length === 0) {
+                break;
+            }
         }
 
         bar1.stop();
@@ -145,35 +162,46 @@ class BookScanCalculator {
         return result;
     }
 
-    scoreLibraries(libraries, scores, dayCount) {
-        return libraries.map(library => {
-            if (library === null) {
-                return {
-                    score: 0,
-                    dayscore: 0,
-                    signupTime: 100000
-                }
+    genDescStats(scores) {
+        return `\t${ss.min(scores)}-${ss.max(scores)}, \tM=${ss.mean(scores).toFixed(2)}, \tMD=${ss.median(scores).toFixed(2)}, \tSTD=${ss.standardDeviation(scores).toFixed(2)}, \tQ.25=${ss.quantile(scores, 0.25).toFixed(2)}, \tQ.75=${ss.quantile(scores, 0.75).toFixed(2)}`;
+    }
+
+    scoreLibraries(libraries, bookscores, dayCount, bookCounts) {
+        let scoredLibraries = libraries.map((library, idx) => {
+            if (library === null || library.books.length === 0 || dayCount < library.signupTime) {
+                return null;
             }
-            library.score = this.scoreLibrary(library, scores, dayCount);
+            const scores = this.scoreLibrary(library, bookscores, dayCount, bookCounts);
+
+            library.score = scores[0];
+            library.avgscore = library.score / library.maxBooks;
+            library.scoreuncut = scores[1];
             library.dayscore = library.score / library.shipDays;
+            library.scoreweighted = library.score / library.signupTime;
+            library.scoreweightedbooks = library.scoreweighted * library.books.length;
             return library;
         });
+
+        return scoredLibraries.filter(Boolean);
     }
 
-    scoreLibrary(library, scores, dayCount) {
-        let scoredBooks = library.books.map(bookId => scores[bookId]);
+    scoreLibrary(library, scores, dayCount, bookCounts) {
         library.shipDays = dayCount - library.signupTime;
-        let maxBooks = library.shipDays * library.bookShipCount;
+        library.maxBooks = library.shipDays * library.bookShipCount;
 
+        let scoredBooks = library.books.map(bookId => scores[bookId]/bookCounts[bookId]);
         scoredBooks.sort((a, b) => b - a);
-        if (maxBooks < scoredBooks.length) {
-            scoredBooks.slice(0, maxBooks);
+
+        if (library.maxBooks < library.books.length) {
+            scoredBooks = scoredBooks.slice(0, library.maxBooks);
+        } else {
+            library.maxBooks = library.books.length;
         }
 
-        return scoredBooks.reduce((acc, val) => acc + val, 0);
+        return [scoredBooks.reduce((acc, val) => acc + val, 0), library.books.reduce((acc, val) => acc + scores[val], 0)];
     }
 
-    getScore(signupLibraries, scores, dayCount) {
+    getScore(signupLibraries, {bookCount, libraryCount, dayCount, scores, libraries}) {
         let totalScore = 0;
         let activeLibraries = [];
         let daysPassed = 0;
@@ -188,8 +216,6 @@ class BookScanCalculator {
                     continue;
                 }
 
-                // let nextBatch = library.books.slice(Math.min(library.curBookIdx, library.books.length-1),
-                //     Math.min(library.curBookIdx+library.bookShipCount, library.books.length-1));
                 let nextBatch = library.books.slice(library.curBookIdx, library.curBookIdx+library.bookShipCount);
 
                 if (nextBatch.length === 0 || library.curBookIdx > library.books.length) {
@@ -229,6 +255,15 @@ class BookScanCalculator {
                 signingProcess--;
             }
         }
+
+        let booksUsed = Object.keys(visitedBooks).length;
+        console.log(`Using ${activeLibraries.length} libraries (${(activeLibraries.length/libraryCount*100).toFixed(2)}%) with ${booksUsed} books (${(booksUsed/bookCount*100).toFixed(2)}%)`);
+
+        let avgBooksPerLibrary = activeLibraries.map(l => l.books.length)
+            .reduce((previous, current) => current + previous)
+            / activeLibraries.length;
+
+        console.log(`Average books per library: ${avgBooksPerLibrary.toFixed(2)}`);
 
         return totalScore;
     }

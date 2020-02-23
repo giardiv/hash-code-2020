@@ -15,13 +15,13 @@ const args = require('yargs')
         alias: 'i',
         describe: '',
         type: 'integer',
-        default: 100
+        default: 1
     })
     .option('scoreRange', {
         alias: 's',
         describe: '',
-        type: 'integer',
-        default: 15
+        type: 'float',
+        default: 0
     })
     .help()
     .argv;
@@ -40,7 +40,7 @@ args.shouldLog && console.log(data.libraries);
 const bookScanCalculator = new BookScanCalculator(args);
 const result = bookScanCalculator.generateResultsLukas(data);
 
-const totalScore = bookScanCalculator.getScore(result, data.scores, data.dayCount);
+const totalScore = bookScanCalculator.getScore(result, data);
 console.log(`\nThe score is ${ totalScore.toLocaleString() }`);
 
 IO.writeOutput(result, filename, totalScore, args);
